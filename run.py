@@ -18,8 +18,8 @@ temp_topic = "redi-iot-2021/t"
 humidity_topic = "redi-iot-2021/h"
 light_topic = "redi-iot-2021/light"
 # sensor/led
-led_pin = 14
-sensor_pin = 4
+led_pin = 4
+sensor_pin = 14
 # initialize GPIO, First we stop the warnings which is a feature in this Python GPIO library.
 GPIO.setwarnings(False)
 # We also set the GPIO mode to BCM which is kind of standret RaspberryPi GPIO mapping scheme.
