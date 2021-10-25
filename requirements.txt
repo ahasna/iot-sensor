@@ -1,2 +1,3 @@
 paho-mqtt==1.5.1
 Adafruit-DHT==1.4.0
+getmac==0.8.2
