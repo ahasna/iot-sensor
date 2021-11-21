@@ -1,0 +1,14 @@
+[Unit]
+Description=Fruchtoase Sensors Reader Script
+After=network.target
+
+[Service]
+ExecStart=python3 run_dht22_influxdb.py
+WorkingDirectory=/home/pi/Documents/GitHub/iot-sensor/
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
