@@ -1,8 +1,5 @@
-import time
 import os
-from os.path import join, dirname
-from dotenv import load_dotenv
-
+import time
 from datetime import datetime
 
 import Adafruit_DHT
@@ -11,7 +8,8 @@ from dotenv import load_dotenv
 
 from utils import InfluxDBTools, color_it
 
-dotenv_path = join(dirname(__file__), '.env')
+dotenv_path = os.path.join(os.path.dirname(
+    os.path.realpath(__file__)), '.env')
 load_dotenv(dotenv_path)
 
 led_pin = 4
@@ -32,8 +30,8 @@ GPIO.output(led_pin, 0)
 influxdb_tools = InfluxDBTools(
     host=os.environ.get('INFLUXDB__DB_HOST', 'localhost'),
     port=os.environ.get('INFLUXDB__DB_PORT', 8086),
-    db_name=os.environ.get('INFLUXDB__DB_NAME', 'test_measurement')
-    )
+    db_name=os.environ.get('INFLUXDB__DB_NAME', 'test_db')
+)
 while True:
     humidity_long, temperature_long = Adafruit_DHT.read_retry(
         Adafruit_DHT.AM2302, sensor_pin)
@@ -42,13 +40,13 @@ while True:
     temperature = round(temperature_long, 3)
     json_body = [
         {
-            "measurement": os.environ.get('MEASUREMENT_NAME', 'test_measurement'),
+            "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
             "tags": {"sensorId": "DHT22"},
             "time": data_points_time,
             "fields": {"temperature": temperature},
         },
         {
-            "measurement": os.environ.get('MEASUREMENT_NAME', 'test_measurement'),
+            "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
             "tags": {"sensorId": "DHT22"},
             "time": data_points_time,
             "fields": {"humidity": humidity},
@@ -62,4 +60,4 @@ while True:
 
     print(info, end='\r')
 
-    time.sleep(10)
+    time.sleep(5)
