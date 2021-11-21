@@ -7,7 +7,7 @@ class InfluxDBTools:
         'name': 'default_retention_1_week',
         'duration': '7d',
         'replication': 1,
-        'default': True,
+        'default': False,
         'shard_duration':'12h',
 
     }
