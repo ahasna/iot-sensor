@@ -4,6 +4,7 @@
 # Importing:
 # Python library to control GPIO pins onRaspberryPi.
 import RPi.GPIO as GPIO
+
 # Python Library to communicate with "add the sensor model"
 import dht11
 # Import time
