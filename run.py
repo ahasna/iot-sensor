@@ -15,9 +15,9 @@ import paho.mqtt.client as mqtt
 # VARS
 mqtt_broker = "broker.mqttdashboard.com"
 mqtt_broker_port = 1883
-temp_topic = "redi-iot-2021/t"
-humidity_topic = "redi-iot-2021/h"
-light_topic = "redi-iot-2021/light"
+temp_topic = "redi-iot-2022/t"
+humidity_topic = "redi-iot-2022/h"
+light_topic = "redi-iot-2022/light"
 # sensor/led
 led_pin = 4
 sensor_pin = 14
