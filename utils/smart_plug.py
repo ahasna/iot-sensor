@@ -1,13 +1,10 @@
 import asyncio
-import json
 import logging
 import os
-import sys
-import time
 
 from kasa import SmartPlug
 
-SMART_PLUG_IP = "192.168.178.79"
+SMART_PLUG_IP = os.environ.get('SMART_PLUG_IP')
 plug = SmartPlug(SMART_PLUG_IP)
 
 def control_plug(state):

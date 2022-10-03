@@ -6,11 +6,12 @@ import adafruit_dht
 import board
 from dotenv import load_dotenv
 
-from utils import InfluxDBTools, color_it
-from utils import control_plug
 dotenv_path = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '.env')
 load_dotenv(dotenv_path)
+
+from utils import InfluxDBTools, color_it
+from utils import control_plug
 
 dhtDevice = adafruit_dht.DHT22(board.D18)
 
