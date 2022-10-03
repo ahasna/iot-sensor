@@ -2,30 +2,17 @@ import os
 import time
 from datetime import datetime
 
-import Adafruit_DHT
-import RPi.GPIO as GPIO
+import adafruit_dht
+import board
 from dotenv import load_dotenv
 
 from utils import InfluxDBTools, color_it
-
+from utils import control_plug
 dotenv_path = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '.env')
 load_dotenv(dotenv_path)
 
-led_pin = 4
-sensor_pin = 14
-
-# initialize GPIO, First we stop the warnings which is a feature in this Python GPIO library.
-GPIO.setwarnings(False)
-# We also set the GPIO mode to BCM which is kind of standret RaspberryPi GPIO mapping scheme.
-GPIO.setmode(GPIO.BCM)
-# Finally we do a cleanup() this means that we set all GPIO pins to its default state.
-GPIO.cleanup()
-
-# Setting GPIO pin no. 14 as an output.
-GPIO.setup(led_pin, GPIO.OUT)
-# then we set it's state to one which equivalent to "OFF"
-GPIO.output(led_pin, 0)
+dhtDevice = adafruit_dht.DHT22(board.D18)
 
 influxdb_tools = InfluxDBTools(
     host=os.environ.get('INFLUXDB__DB_HOST', 'localhost'),
@@ -33,11 +20,20 @@ influxdb_tools = InfluxDBTools(
     db_name=os.environ.get('INFLUXDB__DB_NAME', 'test_db')
 )
 while True:
-    humidity_long, temperature_long = Adafruit_DHT.read_retry(
-        Adafruit_DHT.AM2302, sensor_pin)
     data_points_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-    humidity = round(humidity_long, 3)
-    temperature = round(temperature_long, 3)
+    try:
+        # Print the values to the serial port
+        temperature = dhtDevice.temperature
+        humidity = dhtDevice.humidity
+    except RuntimeError as error:
+        # Errors happen fairly often, DHT's are hard to read, just keep going
+        print(error.args[0])
+        time.sleep(2.0)
+        continue
+    if temperature > 25:
+        control_plug("off")
+    else:
+        control_plug("on")
     json_body = [
         {
             "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
@@ -60,4 +56,4 @@ while True:
 
     print(info, end='\r')
 
-    time.sleep(5)
+    time.sleep(2.0)
