@@ -31,9 +31,10 @@ while True:
         time.sleep(2.0)
         continue
     if temperature > 25:
-        control_plug("off")
+        plug_state = "off"
     else:
-        control_plug("on")
+        plug_state = "on"
+    control_plug(plug_state)
     json_body = [
         {
             "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
@@ -46,6 +47,12 @@ while True:
             "tags": {"sensorId": "DHT22"},
             "time": data_points_time,
             "fields": {"humidity": humidity},
+        },
+        {
+            "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
+            "tags": {"smartPlugId": "HS100"},
+            "time": data_points_time,
+            "fields": {"plugState": plug_state},
         },
     ]
     influxdb_tools.write_points(json_body)
