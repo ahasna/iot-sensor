@@ -20,6 +20,10 @@ influxdb_tools = InfluxDBTools(
     port=os.environ.get('INFLUXDB__DB_PORT', 8086),
     db_name=os.environ.get('INFLUXDB__DB_NAME', 'test_db')
 )
+
+control_plug("on")
+previous_state = "on"
+
 while True:
     data_points_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
     try:
@@ -31,11 +35,15 @@ while True:
         print(error.args[0])
         time.sleep(2.0)
         continue
+
     if temperature > 25:
-        plug_state = "off"
+        if previous_state == "on":
+            control_plug("off")
+            previous_state = "off"
     else:
-        plug_state = "on"
-    control_plug(plug_state)
+        if previous_state == "off":
+            control_plug("on")
+            previous_state = "on"
     json_body = [
         {
             "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
