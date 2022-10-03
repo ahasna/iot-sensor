@@ -36,13 +36,13 @@ while True:
         time.sleep(2.0)
         continue
 
-    if temperature > 25:
-        plug_state = "on"
+    if temperature > int(os.environ.get('BASE_TEMP', 25)):
+        plug_state = "off"
         if previous_state == "on":
             control_plug("off")
             previous_state = "off"
     else:
-        plug_state = "off"
+        plug_state = "on"
         if previous_state == "off":
             control_plug("on")
             previous_state = "on"
