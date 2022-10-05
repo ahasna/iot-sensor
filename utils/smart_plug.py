@@ -17,7 +17,5 @@ def control_plug(state):
             asyncio.run(plug.update())
             asyncio.run(plug.turn_off())
             logging.info('turned plug off')
-        return True
     except Exception as e:
         logging.error(e)
-        return False

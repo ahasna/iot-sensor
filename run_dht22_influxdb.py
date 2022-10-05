@@ -39,14 +39,12 @@ while True:
     if temperature > int(os.environ.get('BASE_TEMP', 25)):
         plug_state = "off"
         if previous_state == "on":
-            while control_plug(plug_state) is False:
-                time.sleep(1)
+            control_plug("off")
             previous_state = "off"
     else:
         plug_state = "on"
         if previous_state == "off":
-            while control_plug(plug_state) is False:
-                time.sleep(1)
+            control_plug("on")
             previous_state = "on"
     json_body = [
         {
