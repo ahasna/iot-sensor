@@ -61,7 +61,7 @@ client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
 
 mqtt_connection = mqtt_connection_builder.mtls_from_path(
     endpoint=endpoint,
-    port=443,
+    port=8883,
     cert_filepath="/home/pi/certs/device.pem.crt",
     pri_key_filepath="/home/pi/certs/private.pem.key",
     client_bootstrap=client_bootstrap,
