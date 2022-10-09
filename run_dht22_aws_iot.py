@@ -126,6 +126,7 @@ if __name__ == '__main__':
             message = {
                 "temperature": temperature,
                 "humidity": humidity,
+                "publish_count": publish_count
             }
             print("Publishing message to topic '{}': {}".format(message_topic, message))
             message_json = json.dumps(message)
