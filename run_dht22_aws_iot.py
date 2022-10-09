@@ -1,100 +1,151 @@
-import json
-import logging
-import os
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0.
+
+from awscrt import mqtt
 import sys
 import threading
-import traceback
-from uuid import uuid4
 import time
+from uuid import uuid4
+import json
 
-from awscrt import io, mqtt
-from awsiot import mqtt_connection_builder
+import adafruit_dht
+import board
+dhtDevice = adafruit_dht.DHT22(board.D18)
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-                    format='%(asctime)s %(message)s', datefmt='%m-%d-%Y %H:%M:%S %Z')
+# This sample uses the Message Broker for AWS IoT to send and receive messages
+# through an MQTT connection. On startup, the device connects to the server,
+# subscribes to a topic, and begins publishing messages to that topic.
+# The device should receive those same messages back from the message broker,
+# since it is subscribed to that same topic.
 
+# Parse arguments
+import command_line_utils;
+cmdUtils = command_line_utils.CommandLineUtils("PubSub - Send and recieve messages through an MQTT connection.")
+cmdUtils.add_common_mqtt_commands()
+cmdUtils.add_common_topic_message_commands()
+cmdUtils.add_common_proxy_commands()
+cmdUtils.add_common_logging_commands()
+cmdUtils.register_command("key", "<path>", "Path to your key in PEM format.", True, str)
+cmdUtils.register_command("cert", "<path>", "Path to your client certificate in PEM format.", True, str)
+cmdUtils.register_command("port", "<int>", "Connection port. AWS IoT supports 443 and 8883 (optional, default=auto).", type=int)
+cmdUtils.register_command("client_id", "<str>", "Client ID to use for MQTT connection (optional, default='test-*').", default="test-" + str(uuid4()))
+cmdUtils.register_command("count", "<int>", "The number of messages to send (optional, default='10').", default=10, type=int)
+cmdUtils.register_command("is_ci", "<str>", "If present the sample will run in CI mode (optional, default='None')")
+# Needs to be called so the command utils parse the commands
+cmdUtils.get_args()
+
+received_count = 0
 received_all_event = threading.Event()
-client_id = str(uuid4())
-endpoint = "a2rrngjgcgkt17-ats.iot.eu-central-1.amazonaws.com"
-topic = "iot_lite/2022/temp_humidity"
+is_ci = cmdUtils.get_command("is_ci", None) != None
 
-
+# Callback when connection is accidentally lost.
 def on_connection_interrupted(connection, error, **kwargs):
-    logging.info("Connection interrupted. error: {}".format(error))
+    print("Connection interrupted. error: {}".format(error))
 
 
+# Callback when an interrupted connection is re-established.
 def on_connection_resumed(connection, return_code, session_present, **kwargs):
-    logging.info("Connection resumed. return_code: {} session_present: {}".format(
-        return_code, session_present))
+    print("Connection resumed. return_code: {} session_present: {}".format(return_code, session_present))
 
     if return_code == mqtt.ConnectReturnCode.ACCEPTED and not session_present:
-        logging.info(
-            "Session did not persist. Resubscribing to existing topics...")
+        print("Session did not persist. Resubscribing to existing topics...")
         resubscribe_future, _ = connection.resubscribe_existing_topics()
+
+        # Cannot synchronously wait for resubscribe result because we're on the connection's event-loop thread,
+        # evaluate result with a callback instead.
         resubscribe_future.add_done_callback(on_resubscribe_complete)
 
 
 def on_resubscribe_complete(resubscribe_future):
-    resubscribe_results = resubscribe_future.result()
-    logging.info("Resubscribe results: {}".format(resubscribe_results))
+        resubscribe_results = resubscribe_future.result()
+        print("Resubscribe results: {}".format(resubscribe_results))
 
-    for topic, qos in resubscribe_results['topics']:
-        if qos is None:
-            sys.exit(
-                "Server rejected resubscribe to topic: {}".format(topic))
+        for topic, qos in resubscribe_results['topics']:
+            if qos is None:
+                sys.exit("Server rejected resubscribe to topic: {}".format(topic))
 
-def print_full_exception():
-    exception_type, exception_value, exception_traceback = sys.exc_info()
-    traceback_string = traceback.format_exception(
-        exception_type, exception_value, exception_traceback)
-    err_msg = {
-        "errorType": exception_type.__name__,
-        "errorMessage": str(exception_value),
-        "stackTrace": traceback_string
-    }
-    print(json.dumps(err_msg))
-    return err_msg
 
-event_loop_group = io.EventLoopGroup(1)
-host_resolver = io.DefaultHostResolver(event_loop_group)
-client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
+# Callback when the subscribed topic receives a message
+def on_message_received(topic, payload, dup, qos, retain, **kwargs):
+    print("Received message from topic '{}': {}".format(topic, payload))
+    global received_count
+    received_count += 1
+    if received_count == cmdUtils.get_command("count"):
+        received_all_event.set()
 
-mqtt_connection = mqtt_connection_builder.mtls_from_path(
-    endpoint=endpoint,
-    port=8883,
-    cert_filepath="/home/pi/Assem-RPi.cert.pem",
-    pri_key_filepath="/home/pi/Assem-RPi.private.key",
-    client_bootstrap=client_bootstrap,
-    ca_filepath="/home/pi/root-CA.crt",
-    on_connection_interrupted=on_connection_interrupted,
-    on_connection_resumed=on_connection_resumed,
-    client_id=client_id,
-    clean_session=False,
-    keep_alive_secs=30)
+if __name__ == '__main__':
+    mqtt_connection = cmdUtils.build_mqtt_connection(on_connection_interrupted, on_connection_resumed)
 
-logging.info("Connecting to {} with client ID '{}'...".format(
-    endpoint, client_id))
+    if is_ci == False:
+        print("Connecting to {} with client ID '{}'...".format(
+            cmdUtils.get_command(cmdUtils.m_cmd_endpoint), cmdUtils.get_command("client_id")))
+    else:
+        print("Connecting to endpoint with client ID")
+    connect_future = mqtt_connection.connect()
 
-connect_future = mqtt_connection.connect()
+    # Future.result() waits until a result is available
+    connect_future.result()
+    print("Connected!")
 
-# Future.result() waits until a result is available
-connect_future.result()
-logging.info("Connected!")
+    message_count = cmdUtils.get_command("count")
+    message_topic = cmdUtils.get_command(cmdUtils.m_cmd_topic)
+    message_string = cmdUtils.get_command(cmdUtils.m_cmd_message)
 
-message = {
-    "temp": 22.0,
-    "humidity": 55.0
-}
+    # Subscribe
+    print("Subscribing to topic '{}'...".format(message_topic))
+    subscribe_future, packet_id = mqtt_connection.subscribe(
+        topic=message_topic,
+        qos=mqtt.QoS.AT_LEAST_ONCE,
+        callback=on_message_received)
 
-logging.info("Publishing message to topic '{}': {}".format(topic, message))
+    subscribe_result = subscribe_future.result()
+    print("Subscribed with {}".format(str(subscribe_result['qos'])))
 
-while True:
-    try:
-        mqtt_connection.publish(
-            topic=topic,
-            payload=json.dumps(message),
-            qos=mqtt.QoS.AT_LEAST_ONCE)
-    except Exception as e:
-        print_full_exception()
-    time.sleep(5)
+    # Publish message to server desired number of times.
+    # This step is skipped if message is blank.
+    # This step loops forever if count was set to 0.
+    if message_string:
+        if message_count == 0:
+            print ("Sending messages until program killed")
+        else:
+            print ("Sending {} message(s)".format(message_count))
 
+        publish_count = 1
+        while (publish_count <= message_count) or (message_count == 0):
+
+
+            try:
+                # Print the values to the serial port
+                temperature = dhtDevice.temperature
+                humidity = dhtDevice.humidity
+            except RuntimeError as error:
+                # Errors happen fairly often, DHT's are hard to read, just keep going
+                print(error.args[0])
+                time.sleep(2.0)
+                continue
+            message = {
+                "temperature": temperature,
+                "humidity": humidity,
+            }
+            print("Publishing message to topic '{}': {}".format(message_topic, message))
+            message_json = json.dumps(message)
+            mqtt_connection.publish(
+                topic=message_topic,
+                payload=message_json,
+                qos=mqtt.QoS.AT_LEAST_ONCE)
+            time.sleep(1)
+            publish_count += 1
+
+    # Wait for all messages to be received.
+    # This waits forever if count was set to 0.
+    if message_count != 0 and not received_all_event.is_set():
+        print("Waiting for all messages to be received...")
+
+    received_all_event.wait()
+    print("{} message(s) received.".format(received_count))
+
+    # Disconnect
+    print("Disconnecting...")
+    disconnect_future = mqtt_connection.disconnect()
+    disconnect_future.result()
+    print("Disconnected!")
