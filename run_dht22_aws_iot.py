@@ -174,7 +174,7 @@ if __name__ == '__main__':
                     },
                 ]
             influxdb_tools.write_points(json_body)
-            time.sleep(5)
+            time.sleep(10)
             publish_count += 1
 
     # Wait for all messages to be received.
