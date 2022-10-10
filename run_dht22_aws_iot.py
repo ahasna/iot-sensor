@@ -127,6 +127,7 @@ if __name__ == '__main__':
 
         publish_count = 1
         while (publish_count <= message_count) or (message_count == 0):
+            data_points_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
             try:
                 # Print the values to the serial port
                 temperature = dhtDevice.temperature
@@ -139,7 +140,8 @@ if __name__ == '__main__':
             message = {
                 "temperature": temperature,
                 "humidity": humidity,
-                "publish_count": publish_count
+                "publish_count": publish_count,
+                "time": data_points_time
             }
             print("Publishing message to topic '{}': {}".format(message_topic, message))
             message_json = json.dumps(message)
@@ -151,7 +153,6 @@ if __name__ == '__main__':
                 plug_state = "off"
             else:
                 plug_state = "on"
-            data_points_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
             json_body = [
                     {
                         "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
@@ -173,7 +174,7 @@ if __name__ == '__main__':
                     },
                 ]
             influxdb_tools.write_points(json_body)
-            time.sleep(1)
+            time.sleep(5)
             publish_count += 1
 
     # Wait for all messages to be received.
