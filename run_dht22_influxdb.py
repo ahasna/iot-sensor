@@ -21,7 +21,7 @@ influxdb_tools = InfluxDBTools(
     db_name=os.environ.get('INFLUXDB__DB_NAME', 'test_db')
 )
 
-control_plug("on")
+# control_plug("on")
 previous_state = "on"
 
 while True:
@@ -39,12 +39,12 @@ while True:
     if temperature > int(os.environ.get('BASE_TEMP', 25)):
         plug_state = "off"
         if previous_state == "on":
-            control_plug("off")
+            # control_plug("off")
             previous_state = "off"
     else:
         plug_state = "on"
         if previous_state == "off":
-            control_plug("on")
+            # control_plug("on")
             previous_state = "on"
     json_body = [
         {
