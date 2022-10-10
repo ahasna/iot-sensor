@@ -7,11 +7,26 @@ import threading
 import time
 from uuid import uuid4
 import json
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(
+    os.path.realpath(__file__)), '.env')
+load_dotenv(dotenv_path)
+
+from utils import InfluxDBTools
 
 import adafruit_dht
 import board
+
 dhtDevice = adafruit_dht.DHT22(board.D18)
 
+influxdb_tools = InfluxDBTools(
+    host=os.environ.get('INFLUXDB__DB_HOST', 'localhost'),
+    port=os.environ.get('INFLUXDB__DB_PORT', 8086),
+    db_name=os.environ.get('INFLUXDB__DB_NAME', 'test_db')
+)
 # This sample uses the Message Broker for AWS IoT to send and receive messages
 # through an MQTT connection. On startup, the device connects to the server,
 # subscribes to a topic, and begins publishing messages to that topic.
@@ -112,8 +127,6 @@ if __name__ == '__main__':
 
         publish_count = 1
         while (publish_count <= message_count) or (message_count == 0):
-
-
             try:
                 # Print the values to the serial port
                 temperature = dhtDevice.temperature
@@ -134,6 +147,32 @@ if __name__ == '__main__':
                 topic=message_topic,
                 payload=message_json,
                 qos=mqtt.QoS.AT_LEAST_ONCE)
+            if temperature > int(os.environ.get('BASE_TEMP', 25)):
+                plug_state = "off"
+            else:
+                plug_state = "on"
+            data_points_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+            json_body = [
+                    {
+                        "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
+                        "tags": {"sensorId": "DHT22"},
+                        "time": data_points_time,
+                        "fields": {"temperature": temperature},
+                    },
+                    {
+                        "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
+                        "tags": {"sensorId": "DHT22"},
+                        "time": data_points_time,
+                        "fields": {"humidity": humidity},
+                    },
+                    {
+                        "measurement": os.environ.get('INFLUXDB__MEASUREMENT_NAME', 'test_measurement'),
+                        "tags": {"smartPlugId": "HS100"},
+                        "time": data_points_time,
+                        "fields": {"plugState": plug_state},
+                    },
+                ]
+            influxdb_tools.write_points(json_body)
             time.sleep(1)
             publish_count += 1
 
